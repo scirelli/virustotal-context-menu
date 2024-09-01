@@ -127,19 +127,23 @@ sha1sumFile() {
 checkTheHash() {
     local fileHash
     local result
+    local stats
+
     fileHash="$(sha1sumFile)"
     result=$(curl --request GET \
         --silent \
         --url "https://www.virustotal.com/api/v3/files/${fileHash}" \
         --header "X-Apikey: ${VIRUSTOTAL_API_KEY}" \
-        --header 'accept: application/json' \
-    | \
-    jq -r '.data.attributes.stats')
+        --header 'accept: application/json')
+    stats=$(jq -r '.data.attributes.stats' <<<"$result")
+    if [ "$stats" = 'null' ] || [ -z "$stats" ]; then
+        stats=$(jq -r '.data.attributes.last_analysis_stats' <<<"$result")
+    fi
 
-    if [ "$result" = 'null' ] || [ -z "$result" ]; then
+    if [ "$stats" = 'null' ] || [ -z "$stats" ]; then
         return 1
     else
-        echo "$result"
+        echo "$stats"
     fi
 }
 
@@ -161,26 +165,42 @@ getFileUploadURL() {
     fi
 }
 
+uploadTheFile() {
+    curl --request POST \
+        --silent \
+        --url "$uploadUrl" \
+        --header "X-Apikey: ${VIRUSTOTAL_API_KEY}" \
+        --header 'accept: application/json' \
+        --header 'content-type: multipart/form-data' \
+        --form "file=@${FILE}"
+}
+
+if ! command -v jq &> /dev/null; then
+    err 'jq is required'
+fi
+
+if ! command -v curl &> /dev/null; then
+    err 'curl is required'
+fi
+
+if [ ! -f "$FILE" ]; then
+    err 'File not found' "$FILE"
+fi
+
 if [ -z "${VIRUSTOTAL_API_KEY-}" ]; then
     err 'No API set'
 fi
 
 if h=$(checkTheHash); then
+    echo "$h"
     exit 0
 fi
-info "h='$h' $(sha1sumFile)"
 
 uploadUrl=$(getFileUploadURL)
 if [ "$uploadUrl" = 'null' ] || [ -z "$uploadUrl" ]; then
     err 'Not able to get an upload url.'
 fi
-analysesData=$(curl --request POST \
-    --silent \
-    --url "$uploadUrl" \
-    --header "X-Apikey: ${VIRUSTOTAL_API_KEY}" \
-    --header 'accept: application/json' \
-    --header 'content-type: multipart/form-data' \
-    --form "file=@${FILE}")
+analysesData=$(uploadTheFile)
 
 queued=true
 while [ "$queued" = true ]; do
