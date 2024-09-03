@@ -2,4 +2,5 @@
 notify-send \
     --app-name='QuickScan' \
     --category='transfer.complete' \
-    'Virustotal' "$@ $(/media/scirelli/Chromebook/scirelli/Projects/scirelli/virustotal-context-menu/test.sh "$@")"
+    --icon=dialog-information \
+    'Virustotal' "$* $(/media/scirelli/Chromebook/scirelli/Projects/scirelli/virustotal-context-menu/test.sh "$@")"
