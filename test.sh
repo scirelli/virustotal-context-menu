@@ -80,7 +80,7 @@ _errexit() {
 
     >&2 printf "${ANSI_RED}ERROR${ANSI_RESET}: %s:%s: %s\n" "${2}" "${3}" "${4:-Uncaught exception}"
 
-    if boolTest "${HAM_DEBUG_SHELL:-0}";then
+    if boolTest "${DEBUG_SHELL:-0}";then
         >&2 info "Entering debug shell"
         bash
     fi
