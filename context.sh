@@ -3,10 +3,10 @@
 appName='QuickScan'
 title='Virustotal Scan'
 files=("$@")
-results=$(/media/scirelli/Chromebook/scirelli/Projects/scirelli/virustotal-context-menu/test.sh "${files[@]}")
 
 for file in "${files[@]}"; do
     fileName=$(basename -- "$file")
+    results=$(/media/scirelli/Chromebook/scirelli/Projects/scirelli/virustotal-context-menu/test.sh "$file")
 
     notify-send \
         --app-name="$appName" \
