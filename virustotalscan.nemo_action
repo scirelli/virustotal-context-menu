@@ -1,0 +1,9 @@
+[Nemo Action]
+Name=Virus Scan File
+Comment=Send '%F' to VirusTotal.com to be scanned. Results will be sent to Notifications.
+Exec=<action_scripts/VirusTotalScan.sh %F>
+Icon-Name=virustotal
+Selection=notnone
+Extensions=nodirs;
+Quote=double
+#https://github.com/smurphos/nemo_actions_and_cinnamon_scripts/tree/master

@@ -4,7 +4,9 @@ appName='QuickScan'
 icon='dialog-information'
 titlePre='Virustotal Scan'
 files=("$@")
-scriptDir="$(dirname "$0")"
+scriptDir="$(dirname "$(readlink "$0")")"
+
+cd "$scriptDir" || exit 1
 
 if [ -z "${VIRUSTOTAL_API_KEY-}" ]; then
     >&2 echo 'No API set'

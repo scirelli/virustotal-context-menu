@@ -7,3 +7,12 @@ Add a environment variable in your `.bashrc`
 ```
 export VIRUSTOTAL_API_KEY=<Your key>
 ```
+
+If using `nemo` symlink the `context.sh` script to
+```
+~/.local/share/nemo/scripts
+```
+And symlink the `virustotalscan.nemo_action` to
+```
+~/.local/share/nemo/actions
+```
