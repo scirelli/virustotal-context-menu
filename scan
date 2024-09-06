@@ -1,0 +1,165 @@
+#!/usr/bin/env bash
+(return 0 2>/dev/null) && sourced=0 || sourced=1
+set -o errexit
+set -o nounset
+set -o pipefail
+
+_cleanup() {
+    debug "Cleaning up... '$1'"
+    code="$1"
+    # Check error code for a successful exit
+    if [ "$code" -ne 0 ]; then
+        true # nothing for now
+    fi
+
+    if [ "$sourced" -eq "1" ]; then
+        return "$code"
+    else
+        exit "$code"
+    fi
+}
+
+source ./utils.sh
+
+DELAY_SEC=5
+FILE="$1"
+
+sha1sumFile() {
+    local file
+    file="$1"
+    sha1sum "$file" | cut -d' ' -f1
+}
+
+checkTheHash() {
+    local fileHash
+    local result
+    local stats
+    local file
+
+    file="$1"
+    fileHash="$(sha1sumFile "$file")"
+    result=$(curl --request GET \
+        --silent \
+        --url "https://www.virustotal.com/api/v3/files/${fileHash}" \
+        --header "X-Apikey: ${VIRUSTOTAL_API_KEY}" \
+        --header 'accept: application/json')
+    stats=$(jq -r '.data.attributes.stats' <<<"$result")
+    if [ "$stats" = 'null' ] || [ -z "$stats" ]; then
+        stats=$(jq -r '.data.attributes.last_analysis_stats' <<<"$result")
+    fi
+
+    if [ "$stats" = 'null' ] || [ -z "$stats" ]; then
+        return 1
+    else
+        echo "$stats"
+    fi
+}
+
+getFileUploadURL() {
+    local result
+    result=$(curl --request GET \
+        --silent \
+        --url https://www.virustotal.com/api/v3/files/upload_url \
+        --header "X-Apikey: ${VIRUSTOTAL_API_KEY}" \
+        --header 'accept: application/json' \
+    | \
+    jq -r '.data')
+
+    if [ "$result" = 'null' ] || [ -z "$result" ]; then
+        echo ''
+        return 1
+    else
+        echo "$result"
+    fi
+}
+
+uploadTheFile() {
+    local file
+    file="$1"
+
+    curl --request POST \
+        --silent \
+        --url "$uploadUrl" \
+        --header "X-Apikey: ${VIRUSTOTAL_API_KEY}" \
+        --header 'accept: application/json' \
+        --header 'content-type: multipart/form-data' \
+        --form "file=@${file}"
+}
+
+if ! command -v jq &> /dev/null; then
+    err 'jq is required'
+fi
+
+if ! command -v curl &> /dev/null; then
+    err 'curl is required'
+fi
+
+if [ ! -f "$FILE" ]; then
+    err 'File not found' "$FILE"
+fi
+
+if [ -z "${VIRUSTOTAL_API_KEY-}" ]; then
+    err 'No API set'
+fi
+
+
+scanFile() {
+    local uploadUrl
+    local analysesData
+    local queued
+    local resultStatus
+    local link
+    local file
+
+    file=${1:-"$FILE"}
+
+    uploadUrl=$(getFileUploadURL)
+    if [ "$uploadUrl" = 'null' ] || [ -z "$uploadUrl" ]; then
+        err 'Not able to get an upload url.'
+    fi
+    analysesData=$(uploadTheFile "$file")
+
+    queued=true
+    while [ "$queued" = true ]; do
+        if [ -z "$analysesData" ]; then
+            err 'Failed to scan file'
+        fi
+        resultStatus=$(jq -r '.data.attributes.status' <<< "$analysesData")
+        link=$(jq -r '.data.links.self' <<< "$analysesData")
+        #item=$(jq -r '.data.links.item' <<< "$analysesData")
+
+        # if [ "$item" != 'null' ] && [ -n "$item" ]; then
+        #     info 'Item'
+        #     curl --request GET \
+        #         --url "$item" \
+        #         --header "X-Apikey: ${VIRUSTOTAL_API_KEY}" \
+        #         --header 'accept: application/json'
+        #     exit 0
+        # fi
+
+        if [ "$resultStatus" = 'null' ] || [ "$resultStatus" = 'queued' ] || [ -z "$resultStatus" ]; then
+            info "$analysesData"
+            info "$resultStatus"
+            if [ -z "$link" ]; then
+                err 'Response did not contain a analysis link'
+            fi
+            sleep "$DELAY_SEC"
+            analysesData=$(curl --request GET \
+                --silent \
+                --url "$link" \
+                --header "X-Apikey: ${VIRUSTOTAL_API_KEY}" \
+                --header 'accept: application/json')
+            continue
+        fi
+        queued=false
+        jq '.data.attributes.stats' <<< "$analysesData"
+    done
+}
+
+if [ "$sourced" -eq 1 ]; then
+    if h=$(checkTheHash "$FILE"); then
+        echo "$h"
+    else
+        scanFile "$FILE"
+    fi
+fi
