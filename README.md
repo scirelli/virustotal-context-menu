@@ -17,3 +17,6 @@ Symlink the files in `./nemo/scripts/*` and `./nemo/actions/*` to your
 ~/.local/share/nemo/actions
 ```
 Enable the `Virus Scan File` action in the nemo `Edit -> Plugins` menu. 
+
+## References
+* https://github.com/linuxmint/nemo/blob/master/files/usr/share/nemo/actions/sample.nemo_action
