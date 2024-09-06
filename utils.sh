@@ -15,7 +15,7 @@ ANSI_YELLOW="$(echo -e '\033[33m')"
 # (sequences 90-97 are not part of the standard)
 
 # Invalidate color codes if the terminal doesn't support them
-if [ "$(tput colors)" -lt 16 ]; then
+if [ "$(2>/dev/null tput colors || echo '0')" -lt 16 ]; then
     for _color in ANSI_RED ANSI_GREEN ANSI_YELLOW ; do
         eval "${_color}=''"
     done

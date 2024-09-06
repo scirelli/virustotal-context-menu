@@ -1,22 +1,24 @@
 #!/usr/bin/env bash
-
 appName='QuickScan'
 icon='dialog-information'
 titlePre='Virustotal Scan'
 files=("$@")
-scriptDir="$(dirname "$(readlink "$0")")"
-
-cd "$scriptDir" || exit 1
 
 if [ -z "${VIRUSTOTAL_API_KEY-}" ]; then
     >&2 echo 'No API set'
+    gdbus call --session \
+        --dest=org.freedesktop.Notifications \
+        --object-path=/org/freedesktop/Notifications \
+        --method=org.freedesktop.Notifications.Notify \
+        "$appName" 0 "$icon" "$titlePre" "No API key set '${files[*]}'" \
+        '[]' '{"urgency": <1>}' 0
     exit 1
 fi
 
 for file in "${files[@]}"; do
     fileName=$(basename -- "$file")
     title="$titlePre of '$fileName'"
-    if results=$("$scriptDir"/scan "$file"); then
+    if results=$(./scan "$file"); then
         gdbus call --session \
             --dest=org.freedesktop.Notifications \
             --object-path=/org/freedesktop/Notifications \
@@ -33,11 +35,11 @@ for file in "${files[@]}"; do
     fi
 done
 
-    # notify-send \
-    #     --app-name="$appName" \
-    #     --category='transfer.complete' \
-    #     --icon=dialog-information \
-    #     "$title" "$results"
+# notify-send \
+#     --app-name="$appName" \
+#     --category='transfer.complete' \
+#     --icon=dialog-information \
+#     "$title" "$results"
 
-    # dbus-send will not work since it can't send variant types
-    # Usage: dbus-send [--help] [--system | --session | --bus=ADDRESS | --peer=ADDRESS] [--dest=NAME] [--type=TYPE] [--print-reply[=literal]] [--reply-timeout=MSEC] <destination object path> <message name> [contents ...]
+# dbus-send will not work since it can't send variant types
+# Usage: dbus-send [--help] [--system | --session | --bus=ADDRESS | --peer=ADDRESS] [--dest=NAME] [--type=TYPE] [--print-reply[=literal]] [--reply-timeout=MSEC] <destination object path> <message name> [contents ...]
